@@ -4,4 +4,5 @@ const router = express.Router();
 
 router.post("/signup", authcontroller.signup);
 router.post("/login", authcontroller.login);
+router.get("/resendotp", authcontroller.resendSMSOTP);
 module.exports = router;

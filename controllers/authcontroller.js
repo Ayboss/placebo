@@ -1,9 +1,39 @@
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const serviceid = process.env.TWILLO_SERVICE_ID;
+
+// console.log(accountSid, authToken, serviceid);
 const User = require("../model/UserModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const client = require("twilio")(accountSid, authToken);
 
 const createJWTToken = (id) => {
   return jwt.sign({ id }, process.env.JWTSECRET);
+};
+
+const sendTwilloSMSOTP = async (phonenumber) => {
+  try {
+    const verification = await client.verify.v2
+      .services(serviceid)
+      .verifications.create({ to: phonenumber, channel: "sms" });
+
+    return verification;
+  } catch (err) {
+    throw err;
+  }
+};
+
+const verifyTwilloSMSOTP = async (phonenumber, otp) => {
+  try {
+    const verificationcheck = client.verify.v2
+      .services(serviceid)
+      .verificationChecks.create({ to: phonenumber, code: otp });
+
+    return verificationcheck;
+  } catch (err) {
+    throw err;
+  }
 };
 
 exports.login = async (req, res) => {
@@ -18,18 +48,14 @@ exports.login = async (req, res) => {
       "+password"
     );
 
-    const bcryptresponse = await bcrypt.compare(
-      req.body.password,
-      user.password
-    );
-
-    if (!user || !bcryptresponse) {
+    if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
       return res.status(400).json({
         message: "incorrect login details ",
       });
     }
 
     const token = createJWTToken(user.id);
+    user.password = undefined;
     return res.status(200).json({
       data: user,
       token: token,
@@ -73,4 +99,33 @@ exports.signup = async (req, res, next) => {
       message: "Unable to Signup",
     });
   }
+};
+
+exports.resendSMSOTP = async (req, res) => {
+  try {
+    const response = await sendTwilloSMSOTP("+2348035034968");
+    console.log(response);
+    return res.status(200).json({
+      status: "success",
+      message: response,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      message: "error",
+      err: err,
+    });
+  }
+};
+
+exports.verifySMSOTP = async (req, res) => {
+  const otp = req.body.otp;
+  const phonenumber = req.body.phonenumber;
+  if (!otp) {
+    return res.status(400).json({
+      message: "OTP required failed",
+    });
+  }
+
+  verifyTwilloSMSOTP(phonenumber, otp);
 };
