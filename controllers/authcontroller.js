@@ -37,29 +37,34 @@ const verifyTwilloSMSOTP = async (phonenumber, otp) => {
 };
 
 exports.login = async (req, res) => {
-  if (!req.body.email || !req.body.password) {
+  if (!req.body.phoneOrEmail || !req.body.password) {
     return res.status(400).json({
       err: err,
       message: "Email or password are required",
     });
   }
+
   try {
-    const user = await User.findOne({ email: req.body.email }).select(
-      "+password"
-    );
+
+    const user = await User.findOne({ 
+      $or: [ 
+        { email: req.body.phoneOrEmail}, 
+        { phonenumber: req.body.phoneOrEmail} 
+          ]  
+      }).select("+password");
 
     if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
       return res.status(400).json({
         message: "incorrect login details ",
       });
     }
-
     const token = createJWTToken(user.id);
     user.password = undefined;
     return res.status(200).json({
       data: user,
       token: token,
     });
+  
   } catch (err) {
     console.log(err);
     return res.status(400).json({
@@ -73,6 +78,7 @@ exports.signup = async (req, res, next) => {
   // hashpassword
   try {
     const password = await bcrypt.hash(req.body.password, 12);
+    // Validation takes place in the model 
     const user = await User.create({
       lastname: req.body.lastname,
       firstname: req.body.firstname,
