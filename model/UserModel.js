@@ -25,6 +25,18 @@ const userschema = new mongoose.Schema({
     minLength: 8,
     select: false,
   },
+  verified:{
+    type: Boolean,
+    default: false
+  },
+  otp:{
+    type: String,
+    select: false
+  },
+  otpCreatedAt:{
+    type: Date,
+    select: false
+  }
 });
 
 module.exports = mongoose.model("User", userschema);
